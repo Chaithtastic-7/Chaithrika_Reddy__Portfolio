@@ -1,0 +1,1748 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Portfolio Prototype</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 
+         * STREAMING_CHUNK: Setting up core CSS variables and the luxury agency aesthetic.
+         */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+
+        :root {
+            --bg-dark: #0a0a0a;
+            --bg-panel: #141414;
+            --text-main: #f5f5f5;
+            --text-muted: #888888;
+            --accent: #ffffff;
+            --sidebar-width: 320px;
+            --sidebar-collapsed: 60px;
+            --transition-smooth: 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            overflow: hidden; /* Keep it acting like an app */
+            margin: 0;
+            padding: 0;
+        }
+
+        /* 
+         * STREAMING_CHUNK: Styling the layout grid (Sidebar + Main Content Area).
+         */
+        .app-container {
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* SIDEBAR STYLES */
+        .sidebar {
+            width: var(--sidebar-collapsed);
+            background-color: var(--bg-panel);
+            height: 100%;
+            border-right: 1px solid rgba(255, 255, 255, 0.05);
+            transition: width var(--transition-smooth);
+            position: relative;
+            z-index: 50;
+            display: flex;
+            flex-direction: column;
+            overflow: visible; /* Changed from hidden to allow smooth fading */
+        }
+
+        /* Expand sidebar on hover */
+        .sidebar:hover {
+            width: var(--sidebar-width);
+        }
+
+        /* 
+         * STREAMING_CHUNK: Styling the 'Handle' (Home Button) and navigation structure.
+         */
+        .sidebar-header {
+            padding: 24px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+        }
+
+        .handle-btn {
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: var(--text-main);
+            cursor: pointer;
+            transition: color 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .handle-btn:hover {
+            color: var(--text-muted);
+        }
+
+        /* The icon that shows when sidebar is collapsed */
+        .handle-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--text-main);
+            flex-shrink: 0;
+            display: inline-block;
+        }
+
+        .nav-container {
+            padding: 24px 0;
+            flex-grow: 1;
+            overflow-y: auto;
+            /* Hide scrollbar for sleek look */
+            scrollbar-width: none; 
+            -ms-overflow-style: none;
+            /* UPGRADE 1: Hide contents when sidebar is collapsed */
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        
+        .sidebar:hover .nav-container {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .nav-container::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* 
+         * STREAMING_CHUNK: Styling the accordion navigation logic (Parent & Sub-fields).
+         */
+        .nav-group {
+            margin-bottom: 8px;
+            padding: 0 24px;
+        }
+
+        .nav-parent {
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--text-main);
+            cursor: pointer;
+            padding: 12px 0;
+            white-space: nowrap;
+            transition: color 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-parent:hover {
+            color: var(--text-muted);
+        }
+
+        /* Accordion Sub-menu */
+        .sub-menu {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease-in-out;
+            padding-left: 16px;
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
+            margin-left: 8px;
+        }
+
+        /* Expand sub-menu when parent group is hovered */
+        .nav-group:hover .sub-menu {
+            max-height: 200px; /* Arbitrary large height to allow expansion */
+        }
+
+        .sub-item {
+            display: block;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            padding: 8px 0 8px 12px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: color 0.2s, transform 0.2s;
+        }
+
+        .sub-item:hover, .sub-item.active {
+            color: var(--accent);
+            transform: translateX(4px);
+        }
+
+        /* 
+         * STREAMING_CHUNK: Styling the Main Content Area (Hero vs Preview vs Locked).
+         */
+        .main-content {
+            flex-grow: 1;
+            position: relative;
+            background-color: var(--bg-dark);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* All content panels are stacked on top of each other absolutely */
+        .content-panel {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none; /* Can't click hidden panels */
+            transition: opacity 0.4s ease;
+            padding: 40px;
+        }
+
+        /* The active panel becomes visible */
+        .content-panel.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* 
+         * STREAMING_CHUNK: Specific styling for the Home Hero and Data Panels.
+         */
+        
+        /* Full-Screen Background Front Page */
+        #panel-home {
+            padding: 50px;
+            overflow: hidden;
+            display: flex;
+            align-items: center; /* Changed from flex-end to center */
+            justify-content: center;
+        }
+
+        /* ONLY apply the right-alignment on large desktop screens */
+        @media (min-width: 769px) {
+            #panel-home {
+                align-items: flex-end; /* Push to right ONLY on desktop */
+                padding-right: 100px;
+            }
+        }
+
+        .hero-bg-container {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+        }
+
+        .hero-editorial-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center;
+            opacity: 0.5; /* Dimmed slightly to ensure text pops */
+            transition: opacity 0.5s ease;
+        }
+
+        .hero-bg-overlay {
+            position: absolute;
+            inset: 0;
+            /* Creates a dark vignette and darkens the bottom for readability */
+            background: radial-gradient(circle at center, transparent 0%, var(--bg-dark) 120%), 
+                        linear-gradient(to top, var(--bg-dark) 0%, transparent 40%);
+            z-index: 1;
+        }
+
+        .hero-overlay-content {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 40px;
+            max-width: 800px;
+        }
+
+        .name-bubble {
+            font-size: 3.5rem;
+            font-weight: 600;
+            letter-spacing: -1px;
+            padding: 12px 40px;
+            border-radius: 50px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-block;
+            margin-bottom: 24px;
+        }
+
+        .name-bubble:hover {
+            background: rgba(255,255,255,0.15);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+
+        .hero-tagline {
+            font-size: 1.3rem;
+            color: var(--text-main);
+            text-align: center;
+            line-height: 1.6;
+            margin-bottom: 40px;
+            max-width: 90%;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.8); /* Extra legibility over the image */
+        }
+
+        .book-now-btn {
+            padding: 16px 40px;
+            font-size: 1.1rem;
+            background-color: var(--text-main);
+            color: var(--bg-dark);
+            border: none;
+            border-radius: 30px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, background-color 0.2s;
+        }
+
+        .book-now-btn:hover {
+            transform: scale(1.05);
+            background-color: #e0e0e0;
+        }
+
+        /* Generic Preview/Locked State Styling */
+        .panel-title {
+            font-size: 3rem;
+            font-weight: 300;
+            letter-spacing: -1px;
+            margin-bottom: 16px;
+        }
+
+        .panel-status {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--text-muted);
+            margin-bottom: 40px;
+            padding: 4px 12px;
+            border: 1px solid var(--text-muted);
+            border-radius: 20px;
+        }
+
+        .placeholder-gallery {
+            width: 100%;
+            max-width: 800px;
+            height: 400px;
+            background: var(--bg-panel);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            border: 1px dashed rgba(255,255,255,0.1);
+        }
+
+        /* 
+         * STREAMING_CHUNK: Styling for Horizontal Carousel and Detailed Project View
+         */
+        .gallery-state {
+            width: 100%;
+            max-width: 1000px;
+            display: flex;
+            flex-direction: column;
+            opacity: 1;
+            transition: opacity 0.3s;
+        }
+
+        .gallery-state.hidden {
+            opacity: 0;
+            pointer-events: none;
+            position: absolute;
+        }
+
+        .carousel-wrapper {
+            position: relative;
+            width: 100%;
+            display: flex;
+            align-items: center;
+        }
+
+        .carousel-track {
+            display: flex;
+            gap: 32px;
+            overflow-x: auto;
+            scroll-snap-type: x mandatory;
+            scroll-behavior: smooth;
+            padding: 20px 0;
+            width: 100%;
+            scrollbar-width: none; /* Firefox */
+        }
+        .carousel-track::-webkit-scrollbar {
+            display: none; /* Chrome/Safari */
+        }
+
+        .project-card {
+            min-width: 400px;
+            height: 450px;
+            background-color: var(--bg-panel);
+            border-radius: 16px;
+            scroll-snap-align: center;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.05);
+            transition: transform 0.3s, border-color 0.3s;
+            flex-shrink: 0;
+        }
+
+        .project-card:hover {
+            transform: translateY(-8px);
+            border-color: rgba(255,255,255,0.2);
+        }
+
+        .project-card img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0.7;
+            transition: opacity 0.3s;
+        }
+
+        .project-card:hover img {
+            opacity: 1;
+        }
+
+        .project-card-info {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            padding: 24px;
+            background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+        }
+
+        .carousel-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: white;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 10;
+            transition: background 0.2s, transform 0.2s;
+        }
+
+        .carousel-btn:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-50%) scale(1.1);
+        }
+
+        .carousel-btn.left { left: -24px; }
+        .carousel-btn.right { right: -24px; }
+
+        /* Project Detail View */
+        .detail-state {
+            position: absolute;
+            inset: 0;
+            background-color: var(--bg-dark);
+            padding: 60px 80px;
+            display: flex;
+            flex-direction: column;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s ease;
+            overflow-y: auto;
+            z-index: 20;
+        }
+
+        .detail-state.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-weight: 500;
+            margin-bottom: 32px;
+            transition: color 0.2s;
+            width: fit-content;
+        }
+
+        .back-btn:hover {
+            color: var(--text-main);
+        }
+
+        .detail-grid {
+            display: grid;
+            grid-template-columns: 1.5fr 1fr;
+            gap: 60px;
+            align-items: start;
+        }
+
+        .detail-image-container {
+            width: 100%;
+            border-radius: 16px;
+            overflow: hidden;
+            background: var(--bg-panel);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .detail-image-container img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .detail-info h2 {
+            font-size: 2.5rem;
+            font-weight: 300;
+            margin-bottom: 24px;
+            letter-spacing: -1px;
+        }
+
+        .detail-meta {
+            margin-bottom: 32px;
+        }
+
+        .meta-item {
+            margin-bottom: 24px;
+        }
+
+        .meta-label {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .meta-value {
+            font-size: 1.1rem;
+            color: var(--text-main);
+        }
+
+        .detail-testimonial {
+            margin-top: 48px;
+            padding: 24px;
+            background: var(--bg-panel);
+            border-radius: 12px;
+            border-left: 4px solid var(--accent);
+        }
+
+        .testimonial-text {
+            font-style: italic;
+            color: rgba(255,255,255,0.8);
+            margin-bottom: 12px;
+            line-height: 1.6;
+        }
+
+        .testimonial-author {
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        /* 
+         * STREAMING_CHUNK: Styling for the Script Writing video-embed cards + responsive iframe wrapper.
+         */
+        .embed-card-thumb {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        .embed-card-thumb::after {
+            content: '\25B6';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 64px;
+            height: 64px;
+            background: rgba(255,255,255,0.12);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            color: white;
+            padding-left: 4px; /* optical centering for the play glyph */
+            transition: transform 0.2s, background 0.2s;
+        }
+
+        .project-card:hover .embed-card-thumb::after {
+            transform: translate(-50%, -50%) scale(1.1);
+            background: rgba(255,255,255,0.25);
+        }
+
+        /* Responsive 16:9 wrapper so YouTube embeds scale correctly inside detail-image-container */
+        .video-embed-wrapper {
+            position: relative;
+            width: 100%;
+            padding-bottom: 56.25%;
+            height: 0;
+        }
+
+        .video-embed-wrapper iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: 0;
+            display: block;
+        }
+
+        /* 
+         * STREAMING_CHUNK: Styling for Modals (Social Hub & Booking) 
+         */
+         .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-container {
+            background: var(--bg-panel);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 40px;
+            width: 90%;
+            max-width: 600px;
+            position: relative;
+            transform: translateY(20px);
+            transition: transform 0.3s ease;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-overlay.active .modal-container {
+            transform: translateY(0);
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 24px;
+            right: 24px;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .modal-close:hover {
+            color: var(--text-main);
+        }
+
+        .modal-title {
+            font-size: 2rem;
+            font-weight: 300;
+            margin-bottom: 32px;
+            letter-spacing: -0.5px;
+        }
+
+        /* Social Hub Grid */
+        .social-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+
+        .social-btn {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px 24px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 16px;
+            color: var(--text-main);
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .social-btn:hover {
+            background: rgba(255,255,255,0.1);
+            transform: translateY(-2px);
+        }
+
+        /* Booking Form */
+        .booking-form {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-group label {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .form-input {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 12px 16px;
+            color: var(--text-main);
+            font-family: inherit;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .form-input:focus {
+            border-color: rgba(255,255,255,0.3);
+        }
+
+        textarea.form-input {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        /* Time Slots */
+        .time-slot-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-top: 8px;
+        }
+
+        .time-slot {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .time-slot:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .time-slot.selected {
+            background: var(--text-main);
+            color: var(--bg-dark);
+            font-weight: 600;
+        }
+
+        .submit-btn {
+            margin-top: 16px;
+            padding: 16px;
+            background: var(--text-main);
+            color: var(--bg-dark);
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .submit-btn:hover {
+            opacity: 0.9;
+        }
+
+        /* Mobile Responsive Fix */
+        @media (max-width: 768px) {
+            .app-container { flex-direction: column; }
+            .sidebar { width: 100%; height: 60px; border-right: none; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+            .sidebar:hover { width: 100%; }
+            
+            #panel-home {
+                align-items: center; /* Center content on mobile */
+                padding-right: 0;
+                text-align: center;
+            }
+            
+            .name-bubble { font-size: 2rem !important; }
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        
+        <!-- SIDEBAR -->
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <!-- Click to go Home -->
+                <div class="handle-btn" onclick="goHome()">
+                    <div class="handle-icon"></div>
+                    <span style="opacity: 1; transition: opacity 0.3s;">Your Handle</span>
+                </div>
+            </div>
+
+            <div class="nav-container">
+                <!-- Group 1 -->
+                <div class="nav-group">
+                    <div class="nav-parent">Visual & Design</div>
+                    <div class="sub-menu">
+                        <div class="sub-item" data-target="graphic-design">Graphic Designing</div>
+                        <div class="sub-item" data-target="photo-editing">Photo Editing</div>
+                        <div class="sub-item" data-target="photography">Photography</div>
+                    </div>
+                </div>
+
+                <!-- Group 2 -->
+                <div class="nav-group">
+                    <div class="nav-parent">Motion & Production</div>
+                    <div class="sub-menu">
+                        <div class="sub-item" data-target="video-making">Video Making</div>
+                        <div class="sub-item" data-target="video-editing">Video Editing</div>
+                        <div class="sub-item" data-target="script-writing">Script Writing</div>
+                    </div>
+                </div>
+
+                <!-- Group 3 -->
+                <div class="nav-group">
+                    <div class="nav-parent">3D & Animation</div>
+                    <div class="sub-menu">
+                        <div class="sub-item" data-target="blender">Blender Projects</div>
+                        <div class="sub-item" data-target="anime">Anime Portfolio</div>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <main class="main-content">
+            
+            <!-- Default Home Panel -->
+            <div class="content-panel active" id="panel-home">
+                <div class="hero-bg-container">
+                    <img src="profile.jpg" alt="Editorial Portrait" class="hero-editorial-img" onerror="this.src='https://placehold.co/1920x1080/111/fff?text=Background+Photo'">
+                    <div class="hero-bg-overlay"></div>
+                </div>
+                
+                <div class="hero-overlay-content">
+                    <div class="name-bubble" onclick="openModal('social-modal')">Chaithrika</div>
+                    <p class="hero-tagline">A multidisciplinary creative specializing in design, motion, and 3D animation.</p>
+                    <button class="book-now-btn" onclick="openModal('booking-modal')">Book Now</button>
+                </div>
+            </div>
+
+            <!-- ================= GRAPHIC DESIGN (prefix: gd) ================= -->
+            <div class="content-panel" id="panel-graphic-design">
+
+                <div class="gallery-state" id="gd-gallery">
+                    <div class="panel-status status-indicator">Previewing</div>
+                    <h2 class="panel-title">Graphic Designing</h2>
+                    <p class="text-gray-400 mb-8">Scroll horizontally to browse projects. Click any project to view details.</p>
+
+                    <div class="carousel-wrapper">
+                        <button class="carousel-btn left" onclick="scrollCarousel('gd-track', -1)">&#8592;</button>
+
+                        <div class="carousel-track" id="gd-track">
+                            <div class="project-card" onclick="openProject('gd', 'Project Alpha', 'Fintech Startup', 'Created a complete visual identity including logo, typography, and marketing materials to help this startup secure Series A funding.', 'Working with this designer was a game-changer. The brand feels premium and trustworthy.', 'image', 'https://placehold.co/1200x800/1a1a1a/ffffff?text=Fintech+Brand')">
+                                <img src="https://placehold.co/600x800/1a1a1a/ffffff?text=Fintech+Brand" alt="Project 1">
+                                <div class="project-card-info">
+                                    <h3 class="text-xl font-medium">Project Alpha</h3>
+                                    <p class="text-sm text-gray-400">Branding & Identity</p>
+                                </div>
+                            </div>
+
+                            <div class="project-card" onclick="openProject('gd', 'Neon UI Kit', 'SaaS Dashboard', 'Designed a dark-mode focused UI kit for a data analytics platform, prioritizing readability and high-contrast data visualization.', 'The attention to detail in the data tables saved our engineering team weeks of guesswork.', 'image', 'https://placehold.co/1200x800/222222/ffffff?text=Dashboard+UI')">
+                                <img src="https://placehold.co/600x800/222/ffffff?text=Dashboard+UI" alt="Project 2">
+                                <div class="project-card-info">
+                                    <h3 class="text-xl font-medium">Neon UI Kit</h3>
+                                    <p class="text-sm text-gray-400">UI/UX Design</p>
+                                </div>
+                            </div>
+
+                            <div class="project-card" onclick="openProject('gd', 'Eco Threads', 'Sustainable E-commerce', 'Full website redesign and packaging mockups for an eco-friendly clothing brand.', 'Our conversion rate increased by 40% after the new look launched.', 'image', 'https://placehold.co/1200x800/111111/ffffff?text=Eco+Packaging')">
+                                <img src="https://placehold.co/600x800/111/ffffff?text=Eco+Packaging" alt="Project 3">
+                                <div class="project-card-info">
+                                    <h3 class="text-xl font-medium">Eco Threads</h3>
+                                    <p class="text-sm text-gray-400">Web Design & Packaging</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button class="carousel-btn right" onclick="scrollCarousel('gd-track', 1)">&#8594;</button>
+                    </div>
+                </div>
+
+                <div class="detail-state" id="gd-detail">
+                    <div class="back-btn" onclick="closeProject('gd')">&#8592; Back to Graphic Design</div>
+
+                    <div class="detail-grid">
+                        <div class="detail-image-container" id="gd-detail-media">
+                            <img src="https://placehold.co/1200x800/1a1a1a/ffffff?text=Loading..." alt="Project Detail">
+                        </div>
+
+                        <div class="detail-info">
+                            <h2 id="gd-detail-title">Project Name</h2>
+                            <div class="detail-meta">
+                                <div class="meta-item">
+                                    <div class="meta-label">Client</div>
+                                    <div class="meta-value" id="gd-detail-client">Client Name</div>
+                                </div>
+                                <div class="meta-item">
+                                    <div class="meta-label">What & How I Created It</div>
+                                    <div class="meta-value" style="font-size: 1rem; color: #aaa; line-height: 1.6;" id="gd-detail-desc">Project details go here...</div>
+                                </div>
+                            </div>
+                            <div class="detail-testimonial">
+                                <div class="testimonial-text" id="gd-detail-quote">"Client comment goes here."</div>
+                                <div class="testimonial-author">Client Feedback</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================= PHOTO EDITING (prefix: pe) ================= -->
+            <div class="content-panel" id="panel-photo-editing">
+
+                <div class="gallery-state" id="pe-gallery">
+                    <div class="panel-status status-indicator">Previewing</div>
+                    <h2 class="panel-title">Photo Editing</h2>
+                    <p class="text-gray-400 mb-8">Scroll horizontally to browse projects. Click any project to view details.</p>
+
+                    <div class="carousel-wrapper">
+                        <button class="carousel-btn left" onclick="scrollCarousel('pe-track', -1)">&#8592;</button>
+
+                        <div class="carousel-track" id="pe-track">
+                            <div class="project-card" onclick="openProject('pe', '[Project Name]', '[Client Name]', '[Describe what the retouching/editing job involved and your process.]', '[Client testimonial goes here.]', 'image', 'https://placehold.co/1200x800/1a1414/ffffff?text=Before+%2F+After')">
+                                <img src="https://placehold.co/600x800/1a1414/ffffff?text=Before+%2F+After" alt="Placeholder project 1">
+                                <div class="project-card-info">
+                                    <h3 class="text-xl font-medium">[Project Name]</h3>
+                                    <p class="text-sm text-gray-400">Retouching</p>
+                                </div>
+                            </div>
+
+                            <div class="project-card" onclick="openProject('pe', '[Project Name]', '[Client Name]', '[Describe what the retouching/editing job involved and your process.]', '[Client testimonial goes here.]', 'image', 'https://placehold.co/1200x800/141a14/ffffff?text=Color+Grading')">
+                                <img src="https://placehold.co/600x800/141a14/ffffff?text=Color+Grading" alt="Placeholder project 2">
+                                <div class="project-card-info">
+                                    <h3 class="text-xl font-medium">[Project Name]</h3>
+                                    <p class="text-sm text-gray-400">Color Grading</p>
+                                </div>
+                            </div>
+
+                            <div class="project-card" onclick="openProject('pe', '[Project Name]', '[Client Name]', '[Describe what the retouching/editing job involved and your process.]', '[Client testimonial goes here.]', 'image', 'https://placehold.co/1200x800/14141a/ffffff?text=Composite')">
+                                <img src="https://placehold.co/600x800/14141a/ffffff?text=Composite" alt="Placeholder project 3">
+                                <div class="project-card-info">
+                                    <h3 class="text-xl font-medium">[Project Name]</h3>
+                                    <p class="text-sm text-gray-400">Compositing</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button class="carousel-btn right" onclick="scrollCarousel('pe-track', 1)">&#8594;</button>
+                    </div>
+                </div>
+
+                <div class="detail-state" id="pe-detail">
+                    <div class="back-btn" onclick="closeProject('pe')">&#8592; Back to Photo Editing</div>
+
+                    <div class="detail-grid">
+                        <div class="detail-image-container" id="pe-detail-media">
+                            <img src="https://placehold.co/1200x800/1a1414/ffffff?text=Loading..." alt="Project Detail">
+                        </div>
+
+                        <div class="detail-info">
+                            <h2 id="pe-detail-title">Project Name</h2>
+                            <div class="detail-meta">
+                                <div class="meta-item">
+                                    <div class="meta-label">Client</div>
+                                    <div class="meta-value" id="pe-detail-client">Client Name</div>
+                                </div>
+                                <div class="meta-item">
+                                    <div class="meta-label">What & How I Created It</div>
+                                    <div class="meta-value" style="font-size: 1rem; color: #aaa; line-height: 1.6;" id="pe-detail-desc">Project details go here...</div>
+                                </div>
+                            </div>
+                            <div class="detail-testimonial">
+                                <div class="testimonial-text" id="pe-detail-quote">"Client comment goes here."</div>
+                                <div class="testimonial-author">Client Feedback</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================= PHOTOGRAPHY (prefix: ph) ================= -->
+            <div class="content-panel" id="panel-photography">
+
+                <div class="gallery-state" id="ph-gallery">
+                    <div class="panel-status status-indicator">Previewing</div>
+                    <h2 class="panel-title">Photography</h2>
+                    <p class="text-gray-400 mb-8">Scroll horizontally to browse projects. Click any project to view details.</p>
+
+                    <div class="carousel-wrapper">
+                        <button class="carousel-btn left" onclick="scrollCarousel('ph-track', -1)">&#8592;</button>
+
+                        <div class="carousel-track" id="ph-track">
+                            <div class="project-card" onclick="openProject('ph', '[Shoot Name]', '[Client Name]', '[Describe the shoot: location, gear, lighting approach, concept.]', '[Client testimonial goes here.]', 'image', 'https://placehold.co/1200x800/1a1720/ffffff?text=Portrait+Series')">
+                                <img src="https://placehold.co/600x800/1a1720/ffffff?text=Portrait+Series" alt="Placeholder shoot 1">
+                                <div class="project-card-info">
+                                    <h3 class="text-xl font-medium">[Shoot Name]</h3>
+                                    <p class="text-sm text-gray-400">Portrait</p>
+                                </div>
+                            </div>
+
+                            <div class="project-card" onclick="openProject('ph', '[Shoot Name]', '[Client Name]', '[Describe the shoot: location, gear, lighting approach, concept.]', '[Client testimonial goes here.]', 'image', 'https://placehold.co/1200x800/17201a/ffffff?text=Product+Shoot')">
+                                <img src="https://placehold.co/600x800/17201a/ffffff?text=Product+Shoot" alt="Placeholder shoot 2">
+                                <div class="project-card-info">
+                                    <h3 class="text-xl font-medium">[Shoot Name]</h3>
+                                    <p class="text-sm text-gray-400">Product</p>
+                                </div>
+                            </div>
+
+                            <div class="project-card" onclick="openProject('ph', '[Shoot Name]', '[Client Name]', '[Describe the shoot: location, gear, lighting approach, concept.]', '[Client testimonial goes here.]', 'image', 'https://placehold.co/1200x800/20171a/ffffff?text=Event+Coverage')">
+                                <img src="https://placehold.co/600x800/20171a/ffffff?text=Event+Coverage" alt="Placeholder shoot 3">
+                                <div class="project-card-info">
+                                    <h3 class="text-xl font-medium">[Shoot Name]</h3>
+                                    <p class="text-sm text-gray-400">Event</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button class="carousel-btn right" onclick="scrollCarousel('ph-track', 1)">&#8594;</button>
+                    </div>
+                </div>
+
+                <div class="detail-state" id="ph-detail">
+                    <div class="back-btn" onclick="closeProject('ph')">&#8592; Back to Photography</div>
+
+                    <div class="detail-grid">
+                        <div class="detail-image-container" id="ph-detail-media">
+                            <img src="https://placehold.co/1200x800/1a1720/ffffff?text=Loading..." alt="Shoot Detail">
+                        </div>
+
+                        <div class="detail-info">
+                            <h2 id="ph-detail-title">Shoot Name</h2>
+                            <div class="detail-meta">
+                                <div class="meta-item">
+                                    <div class="meta-label">Client</div>
+                                    <div class="meta-value" id="ph-detail-client">Client Name</div>
+                                </div>
+                                <div class="meta-item">
+                                    <div class="meta-label">What & How I Created It</div>
+                                    <div class="meta-value" style="font-size: 1rem; color: #aaa; line-height: 1.6;" id="ph-detail-desc">Shoot details go here...</div>
+                                </div>
+                            </div>
+                            <div class="detail-testimonial">
+                                <div class="testimonial-text" id="ph-detail-quote">"Client comment goes here."</div>
+                                <div class="testimonial-author">Client Feedback</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================= VIDEO MAKING (prefix: vm) ================= -->
+            <div class="content-panel" id="panel-video-making">
+
+                <div class="gallery-state" id="vm-gallery">
+                    <div class="panel-status status-indicator">Previewing</div>
+                    <h2 class="panel-title">Video Making</h2>
+                    <p class="text-gray-400 mb-8">Scroll horizontally to browse projects. Click any project to view details.</p>
+
+                    <div class="carousel-wrapper">
+                        <button class="carousel-btn left" onclick="scrollCarousel('vm-track', -1)">&#8592;</button>
+
+                        <div class="carousel-track" id="vm-track">
+                            <div class="project-card" onclick="openProject('vm', '[Production Name]', '[Client Name]', '[Describe the production: concept, filming, direction.]', '[Client testimonial goes here.]', 'image', 'https://placehold.co/1200x800/1a1a1a/ffffff?text=Brand+Film')">
+                                <img src="https://placehold.co/600x800/1a1a1a/ffffff?text=Brand+Film" alt="Placeholder production 1">
+                                <div class="project-card-info">
+                                    <h3 class="text-xl font-medium">[Production Name]</h3>
+                                    <p class="text-sm text-gray-400">Brand Film</p>
+                                </div>
+                            </div>
+
+                            <div class="project-card" onclick="openProject('vm', '[Production Name]', '[Client Name]', '[Describe the production: concept, filming, direction.]', '[Client testimonial goes here.]', 'image', 'https://placehold.co/1200x800/141414/ffffff?text=Short+Doc')">
+                                <img src="https://placehold.co/600x800/141414/ffffff?text=Short+Doc" alt="Placeholder production 2">
+                                <div class="project-card-info">
+                                    <h3 class="text-xl font-medium">[Production Name]</h3>
+                                    <p class="text-sm text-gray-400">Short Documentary</p>
+                                </div>
+                            </div>
+
+                            <div class="project-card" onclick="openProject('vm', '[Production Name]', '[Client Name]', '[Describe the production: concept, filming, direction.]', '[Client testimonial goes here.]', 'image', 'https://placehold.co/1200x800/181818/ffffff?text=Music+Video')">
+                                <img src="https://placehold.co/600x800/181818/ffffff?text=Music+Video" alt="Placeholder production 3">
+                                <div class="project-card-info">
+                                    <h3 class="text-xl font-medium">[Production Name]</h3>
+                                    <p class="text-sm text-gray-400">Music Video</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button class="carousel-btn right" onclick="scrollCarousel('vm-track', 1)">&#8594;</button>
+                    </div>
+                </div>
+
+                <div class="detail-state" id="vm-detail">
+                    <div class="back-btn" onclick="closeProject('vm')">&#8592; Back to Video Making</div>
+
+                    <div class="detail-grid">
+                        <div class="detail-image-container" id="vm-detail-media">
+                            <img src="https://placehold.co/1200x800/1a1a1a/ffffff?text=Loading..." alt="Production Detail">
+                        </div>
+
+                        <div class="detail-info">
+                            <h2 id="vm-detail-title">Production Name</h2>
+                            <div class="detail-meta">
+                                <div class="meta-item">
+                                    <div class="meta-label">Client</div>
+                                    <div class="meta-value" id="vm-detail-client">Client Name</div>
+                                </div>
+                                <div class="meta-item">
+                                    <div class="meta-label">What & How I Created It</div>
+                                    <div class="meta-value" style="font-size: 1rem; color: #aaa; line-height: 1.6;" id="vm-detail-desc">Production details go here...</div>
+                                </div>
+                            </div>
+                            <div class="detail-testimonial">
+                                <div class="testimonial-text" id="vm-detail-quote">"Client comment goes here."</div>
+                                <div class="testimonial-author">Client Feedback</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================= VIDEO EDITING (prefix: ve) ================= -->
+            <div class="content-panel" id="panel-video-editing">
+
+                <div class="gallery-state" id="ve-gallery">
+                    <div class="panel-status status-indicator">Previewing</div>
+                    <h2 class="panel-title">Video Editing</h2>
+                    <p class="text-gray-400 mb-8">Scroll horizontally to browse projects. Click any project to view details.</p>
+
+                    <div class="carousel-wrapper">
+                        <button class="carousel-btn left" onclick="scrollCarousel('ve-track', -1)">&#8592;</button>
+
+                        <div class="carousel-track" id="ve-track">
+                            <div class="project-card" onclick="openProject('ve', '[Edit Name]', '[Client Name]', '[Describe the edit: pacing, sound design, color, software used.]', '[Client testimonial goes here.]', 'image', 'https://placehold.co/1200x800/1a1a1a/ffffff?text=Reel+Edit')">
+                                <img src="https://placehold.co/600x800/1a1a1a/ffffff?text=Reel+Edit" alt="Placeholder edit 1">
+                                <div class="project-card-info">
+                                    <h3 class="text-xl font-medium">[Edit Name]</h3>
+                                    <p class="text-sm text-gray-400">Sizzle Reel</p>
+                                </div>
+                            </div>
+
+                            <div class="project-card" onclick="openProject('ve', '[Edit Name]', '[Client Name]', '[Describe the edit: pacing, sound design, color, software used.]', '[Client testimonial goes here.]', 'image', 'https://placehold.co/1200x800/141414/ffffff?text=Commercial+Cut')">
+                                <img src="https://placehold.co/600x800/141414/ffffff?text=Commercial+Cut" alt="Placeholder edit 2">
+                                <div class="project-card-info">
+                                    <h3 class="text-xl font-medium">[Edit Name]</h3>
+                                    <p class="text-sm text-gray-400">Commercial Cut</p>
+                                </div>
+                            </div>
+
+                            <div class="project-card" onclick="openProject('ve', '[Edit Name]', '[Client Name]', '[Describe the edit: pacing, sound design, color, software used.]', '[Client testimonial goes here.]', 'image', 'https://placehold.co/1200x800/181818/ffffff?text=Vlog+Edit')">
+                                <img src="https://placehold.co/600x800/181818/ffffff?text=Vlog+Edit" alt="Placeholder edit 3">
+                                <div class="project-card-info">
+                                    <h3 class="text-xl font-medium">[Edit Name]</h3>
+                                    <p class="text-sm text-gray-400">Vlog Edit</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button class="carousel-btn right" onclick="scrollCarousel('ve-track', 1)">&#8594;</button>
+                    </div>
+                </div>
+
+                <div class="detail-state" id="ve-detail">
+                    <div class="back-btn" onclick="closeProject('ve')">&#8592; Back to Video Editing</div>
+
+                    <div class="detail-grid">
+                        <div class="detail-image-container" id="ve-detail-media">
+                            <img src="https://placehold.co/1200x800/1a1a1a/ffffff?text=Loading..." alt="Edit Detail">
+                        </div>
+
+                        <div class="detail-info">
+                            <h2 id="ve-detail-title">Edit Name</h2>
+                            <div class="detail-meta">
+                                <div class="meta-item">
+                                    <div class="meta-label">Client</div>
+                                    <div class="meta-value" id="ve-detail-client">Client Name</div>
+                                </div>
+                                <div class="meta-item">
+                                    <div class="meta-label">What & How I Created It</div>
+                                    <div class="meta-value" style="font-size: 1rem; color: #aaa; line-height: 1.6;" id="ve-detail-desc">Edit details go here...</div>
+                                </div>
+                            </div>
+                            <div class="detail-testimonial">
+                                <div class="testimonial-text" id="ve-detail-quote">"Client comment goes here."</div>
+                                <div class="testimonial-author">Client Feedback</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================= SCRIPT WRITING (prefix: sw) — cards hold YouTube embed placeholders ================= -->
+            <div class="content-panel" id="panel-script-writing">
+
+                <div class="gallery-state" id="sw-gallery">
+                    <div class="panel-status status-indicator">Previewing</div>
+                    <h2 class="panel-title">Script Writing</h2>
+                    <p class="text-gray-400 mb-8">Scroll horizontally to browse scripts. Click any card to watch the produced video and read the write-up.</p>
+
+                    <div class="carousel-wrapper">
+                        <button class="carousel-btn left" onclick="scrollCarousel('sw-track', -1)">&#8592;</button>
+
+                        <div class="carousel-track" id="sw-track">
+                            <!-- Replace the embed URL below with your real YouTube video ID: https://www.youtube.com/embed/VIDEO_ID -->
+                            <div class="project-card" onclick="openProject('sw', '[Script Title]', '[Client / Channel Name]', '[Describe the script: concept, tone, research, and how it was structured for the final video.]', '[Client testimonial goes here.]', 'video', 'https://www.youtube.com/embed/VIDEO_ID_HERE')">
+                                <div class="embed-card-thumb">
+                                    <img src="https://placehold.co/600x800/1a1414/ffffff?text=Video+Essay" alt="Placeholder script 1">
+                                </div>
+                                <div class="project-card-info">
+                                    <h3 class="text-xl font-medium">[Script Title]</h3>
+                                    <p class="text-sm text-gray-400">Video Essay</p>
+                                </div>
+                            </div>
+
+                            <div class="project-card" onclick="openProject('sw', '[Script Title]', '[Client / Channel Name]', '[Describe the script: concept, tone, research, and how it was structured for the final video.]', '[Client testimonial goes here.]', 'video', 'https://www.youtube.com/embed/VIDEO_ID_HERE')">
+                                <div class="embed-card-thumb">
+                                    <img src="https://placehold.co/600x800/141a14/ffffff?text=Explainer" alt="Placeholder script 2">
+                                </div>
+                                <div class="project-card-info">
+                                    <h3 class="text-xl font-medium">[Script Title]</h3>
+                                    <p class="text-sm text-gray-400">Explainer</p>
+                                </div>
+                            </div>
+
+                            <div class="project-card" onclick="openProject('sw', '[Script Title]', '[Client / Channel Name]', '[Describe the script: concept, tone, research, and how it was structured for the final video.]', '[Client testimonial goes here.]', 'video', 'https://www.youtube.com/embed/VIDEO_ID_HERE')">
+                                <div class="embed-card-thumb">
+                                    <img src="https://placehold.co/600x800/14141a/ffffff?text=Ad+Script" alt="Placeholder script 3">
+                                </div>
+                                <div class="project-card-info">
+                                    <h3 class="text-xl font-medium">[Script Title]</h3>
+                                    <p class="text-sm text-gray-400">Ad Script</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button class="carousel-btn right" onclick="scrollCarousel('sw-track', 1)">&#8594;</button>
+                    </div>
+                </div>
+
+                <div class="detail-state" id="sw-detail">
+                    <div class="back-btn" onclick="closeProject('sw')">&#8592; Back to Script Writing</div>
+
+                    <div class="detail-grid">
+                        <!-- video-embed-wrapper is injected here by openProject() for mediaType 'video' -->
+                        <div class="detail-image-container" id="sw-detail-media">
+                            <div class="video-embed-wrapper">
+                                <iframe src="" title="Script video" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                            </div>
+                        </div>
+
+                        <div class="detail-info">
+                            <h2 id="sw-detail-title">Script Title</h2>
+                            <div class="detail-meta">
+                                <div class="meta-item">
+                                    <div class="meta-label">Client / Channel</div>
+                                    <div class="meta-value" id="sw-detail-client">Client Name</div>
+                                </div>
+                                <div class="meta-item">
+                                    <div class="meta-label">What & How I Wrote It</div>
+                                    <div class="meta-value" style="font-size: 1rem; color: #aaa; line-height: 1.6;" id="sw-detail-desc">Script details go here...</div>
+                                </div>
+                            </div>
+                            <div class="detail-testimonial">
+                                <div class="testimonial-text" id="sw-detail-quote">"Client comment goes here."</div>
+                                <div class="testimonial-author">Client Feedback</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================= BLENDER PROJECTS (prefix: bl) ================= -->
+            <div class="content-panel" id="panel-blender">
+
+                <div class="gallery-state" id="bl-gallery">
+                    <div class="panel-status status-indicator">Previewing</div>
+                    <h2 class="panel-title">Blender Projects</h2>
+                    <p class="text-gray-400 mb-8">Scroll horizontally to browse renders. Click any project to view details.</p>
+
+                    <div class="carousel-wrapper">
+                        <button class="carousel-btn left" onclick="scrollCarousel('bl-track', -1)">&#8592;</button>
+
+                        <div class="carousel-track" id="bl-track">
+                            <div class="project-card" onclick="openProject('bl', '[Render Name]', '[Client / Personal]', '[Describe the model, materials, lighting setup, and render engine used.]', '[Client testimonial goes here.]', 'image', 'https://placehold.co/1200x800/12141a/ffffff?text=Hard+Surface')">
+                                <img src="https://placehold.co/600x800/12141a/ffffff?text=Hard+Surface" alt="Placeholder render 1">
+                                <div class="project-card-info">
+                                    <h3 class="text-xl font-medium">[Render Name]</h3>
+                                    <p class="text-sm text-gray-400">Hard Surface</p>
+                                </div>
+                            </div>
+
+                            <div class="project-card" onclick="openProject('bl', '[Render Name]', '[Client / Personal]', '[Describe the model, materials, lighting setup, and render engine used.]', '[Client testimonial goes here.]', 'image', 'https://placehold.co/1200x800/141a1a/ffffff?text=Character+Model')">
+                                <img src="https://placehold.co/600x800/141a1a/ffffff?text=Character+Model" alt="Placeholder render 2">
+                                <div class="project-card-info">
+                                    <h3 class="text-xl font-medium">[Render Name]</h3>
+                                    <p class="text-sm text-gray-400">Character Model</p>
+                                </div>
+                            </div>
+
+                            <div class="project-card" onclick="openProject('bl', '[Render Name]', '[Client / Personal]', '[Describe the model, materials, lighting setup, and render engine used.]', '[Client testimonial goes here.]', 'image', 'https://placehold.co/1200x800/1a1420/ffffff?text=Environment')">
+                                <img src="https://placehold.co/600x800/1a1420/ffffff?text=Environment" alt="Placeholder render 3">
+                                <div class="project-card-info">
+                                    <h3 class="text-xl font-medium">[Render Name]</h3>
+                                    <p class="text-sm text-gray-400">Environment Art</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button class="carousel-btn right" onclick="scrollCarousel('bl-track', 1)">&#8594;</button>
+                    </div>
+                </div>
+
+                <div class="detail-state" id="bl-detail">
+                    <div class="back-btn" onclick="closeProject('bl')">&#8592; Back to Blender Projects</div>
+
+                    <div class="detail-grid">
+                        <div class="detail-image-container" id="bl-detail-media">
+                            <img src="https://placehold.co/1200x800/12141a/ffffff?text=Loading..." alt="Render Detail">
+                        </div>
+
+                        <div class="detail-info">
+                            <h2 id="bl-detail-title">Render Name</h2>
+                            <div class="detail-meta">
+                                <div class="meta-item">
+                                    <div class="meta-label">Client / Personal</div>
+                                    <div class="meta-value" id="bl-detail-client">Client Name</div>
+                                </div>
+                                <div class="meta-item">
+                                    <div class="meta-label">What & How I Created It</div>
+                                    <div class="meta-value" style="font-size: 1rem; color: #aaa; line-height: 1.6;" id="bl-detail-desc">Render details go here...</div>
+                                </div>
+                            </div>
+                            <div class="detail-testimonial">
+                                <div class="testimonial-text" id="bl-detail-quote">"Client comment goes here."</div>
+                                <div class="testimonial-author">Client Feedback</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================= ANIME PORTFOLIO (prefix: an) ================= -->
+            <div class="content-panel" id="panel-anime">
+
+                <div class="gallery-state" id="an-gallery">
+                    <div class="panel-status status-indicator">Previewing</div>
+                    <h2 class="panel-title">Anime Portfolio</h2>
+                    <p class="text-gray-400 mb-8">Scroll horizontally to browse pieces. Click any project to view details.</p>
+
+                    <div class="carousel-wrapper">
+                        <button class="carousel-btn left" onclick="scrollCarousel('an-track', -1)">&#8592;</button>
+
+                        <div class="carousel-track" id="an-track">
+                            <div class="project-card" onclick="openProject('an', '[Piece Name]', '[Client / Personal]', '[Describe the style, tools used, and the story or character behind the piece.]', '[Client testimonial goes here.]', 'image', 'https://placehold.co/1200x800/1a1220/ffffff?text=Character+Art')">
+                                <img src="https://placehold.co/600x800/1a1220/ffffff?text=Character+Art" alt="Placeholder anime 1">
+                                <div class="project-card-info">
+                                    <h3 class="text-xl font-medium">[Piece Name]</h3>
+                                    <p class="text-sm text-gray-400">Character Art</p>
+                                </div>
+                            </div>
+
+                            <div class="project-card" onclick="openProject('an', '[Piece Name]', '[Client / Personal]', '[Describe the style, tools used, and the story or character behind the piece.]', '[Client testimonial goes here.]', 'image', 'https://placehold.co/1200x800/20121a/ffffff?text=Key+Frame')">
+                                <img src="https://placehold.co/600x800/20121a/ffffff?text=Key+Frame" alt="Placeholder anime 2">
+                                <div class="project-card-info">
+                                    <h3 class="text-xl font-medium">[Piece Name]</h3>
+                                    <p class="text-sm text-gray-400">Key Frame</p>
+                                </div>
+                            </div>
+
+                            <div class="project-card" onclick="openProject('an', '[Piece Name]', '[Client / Personal]', '[Describe the style, tools used, and the story or character behind the piece.]', '[Client testimonial goes here.]', 'image', 'https://placehold.co/1200x800/121a20/ffffff?text=Storyboard')">
+                                <img src="https://placehold.co/600x800/121a20/ffffff?text=Storyboard" alt="Placeholder anime 3">
+                                <div class="project-card-info">
+                                    <h3 class="text-xl font-medium">[Piece Name]</h3>
+                                    <p class="text-sm text-gray-400">Storyboard</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button class="carousel-btn right" onclick="scrollCarousel('an-track', 1)">&#8594;</button>
+                    </div>
+                </div>
+
+                <div class="detail-state" id="an-detail">
+                    <div class="back-btn" onclick="closeProject('an')">&#8592; Back to Anime Portfolio</div>
+
+                    <div class="detail-grid">
+                        <div class="detail-image-container" id="an-detail-media">
+                            <img src="https://placehold.co/1200x800/1a1220/ffffff?text=Loading..." alt="Piece Detail">
+                        </div>
+
+                        <div class="detail-info">
+                            <h2 id="an-detail-title">Piece Name</h2>
+                            <div class="detail-meta">
+                                <div class="meta-item">
+                                    <div class="meta-label">Client / Personal</div>
+                                    <div class="meta-value" id="an-detail-client">Client Name</div>
+                                </div>
+                                <div class="meta-item">
+                                    <div class="meta-label">What & How I Created It</div>
+                                    <div class="meta-value" style="font-size: 1rem; color: #aaa; line-height: 1.6;" id="an-detail-desc">Piece details go here...</div>
+                                </div>
+                            </div>
+                            <div class="detail-testimonial">
+                                <div class="testimonial-text" id="an-detail-quote">"Client comment goes here."</div>
+                                <div class="testimonial-author">Client Feedback</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Generic fallback panel — kept as a safety net for any future sub-item without a dedicated panel -->
+            <div class="content-panel" id="panel-generic">
+                <div class="panel-status status-indicator">Previewing</div>
+                <h2 class="panel-title" id="generic-title">Portfolio</h2>
+                <div class="placeholder-gallery">Work in progress.</div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- ================= MODALS ================= -->
+
+    <!-- Social Hub Modal -->
+    <div class="modal-overlay" id="social-modal" onclick="closeModalOnBgClick(event, 'social-modal')">
+        <div class="modal-container">
+            <button class="modal-close" onclick="closeModal('social-modal')">&times;</button>
+            <h2 class="modal-title">Connect</h2>
+            <div class="social-grid">
+                <a href="https://www.instagram.com/chaithtastic07/" class="social-btn" target="_blank"rel="noopener noreferrer">Instagram</a>
+                <a href="https://www.youtube.com/@chaithtastic?si=wLtfaVOacUeR2hwz" class="social-btn" target="_blank"rel="noopener noreferrer">YouTube</a>
+                <a href="https://www.facebook.com/ChaithTastic/" class="social-btn" target="_blank"rel="noopener noreferrer">Facebook</a>
+                <a href="#" class="social-btn" target="_blank"rel="noopener noreferrer">Snapchat</a>
+                <a href="#" class="social-btn" target="_blank"rel="noopener noreferrer">LinkedIn</a>
+                <a href="#" class="social-btn" target="_blank"rel="noopener noreferrer">Pinterest</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Booking Modal -->
+    <div class="modal-overlay" id="booking-modal" onclick="closeModalOnBgClick(event, 'booking-modal')">
+        <div class="modal-container">
+            <button class="modal-close" onclick="closeModal('booking-modal')">&times;</button>
+            <h2 class="modal-title">Start a Project</h2>
+            
+            <form class="booking-form" onsubmit="handleBooking(event)">
+                <div class="form-group">
+                    <label>Name</label>
+                    <input type="text" class="form-input" required placeholder="Your full name">
+                </div>
+                
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" class="form-input" required placeholder="you@company.com">
+                </div>
+
+                <div class="form-group">
+                    <label>Purpose of Appointment</label>
+                    <select class="form-input" required>
+                        <option value="" disabled selected>Select an option...</option>
+                        <option value="graphic">Graphic Design</option>
+                        <option value="video">Video Production</option>
+                        <option value="3d">3D & Animation</option>
+                        <option value="general">General Inquiry</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Project Details</label>
+                    <textarea class="form-input" required placeholder="What should I know before our meeting?"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Available Times (Next Week)</label>
+                    <div class="time-slot-grid" id="time-slot-grid">
+                        <div class="time-slot" onclick="selectTimeSlot(this)">Mon 10:00 AM</div>
+                        <div class="time-slot" onclick="selectTimeSlot(this)">Mon 2:00 PM</div>
+                        <div class="time-slot" onclick="selectTimeSlot(this)">Tue 11:30 AM</div>
+                        <div class="time-slot" onclick="selectTimeSlot(this)">Wed 1:00 PM</div>
+                        <div class="time-slot" onclick="selectTimeSlot(this)">Thu 9:00 AM</div>
+                        <div class="time-slot" onclick="selectTimeSlot(this)">Fri 3:30 PM</div>
+                    </div>
+                </div>
+
+                <button type="submit" class="submit-btn" id="submit-booking-btn">Confirm Appointment</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // State variables
+        let lockedPanelId = null; // null means we are at "Home"
+        let hoverTimeout = null;
+
+        // DOM Elements
+        const sidebar = document.getElementById('sidebar');
+        const panels = document.querySelectorAll('.content-panel');
+        const subItems = document.querySelectorAll('.sub-item');
+        const genericPanel = document.getElementById('panel-generic');
+        const genericTitle = document.getElementById('generic-title');
+
+        /*
+         * STREAMING_CHUNK: Map of every data-target -> its gallery/detail id prefix.
+         */
+        const panelPrefixes = {
+            'graphic-design': 'gd',
+            'photo-editing': 'pe',
+            'photography': 'ph',
+            'video-making': 'vm',
+            'video-editing': 've',
+            'script-writing': 'sw',
+            'blender': 'bl',
+            'anime': 'an'
+        };
+        const allPrefixes = Object.values(panelPrefixes);
+
+        // Helper: Switch the active visible panel
+        function showPanel(targetId, isLocked = false) {
+            // Hide all panels
+            panels.forEach(p => p.classList.remove('active'));
+
+            // Try to find specific panel, fallback to generic
+            let panelToShow = document.getElementById(`panel-${targetId}`);
+
+            if (!panelToShow) {
+                panelToShow = genericPanel;
+                // Update generic title text based on target
+                const sourceItem = document.querySelector(`[data-target="${targetId}"]`);
+                genericTitle.textContent = sourceItem ? sourceItem.textContent : "Portfolio";
+            }
+
+            const activePrefix = panelPrefixes[targetId];
+            allPrefixes.forEach(prefix => {
+                if (prefix !== activePrefix) {
+                    closeProject(prefix);
+                }
+            });
+
+            panelToShow.classList.add('active');
+
+            // Update status pill text based on if we clicked (locked) or hovered (preview)
+            const status = panelToShow.querySelector('.status-indicator');
+            if (status) {
+                if (isLocked) {
+                    status.textContent = "Browsing Gallery";
+                    status.style.color = "#fff";
+                    status.style.borderColor = "#fff";
+                } else {
+                    status.textContent = "Previewing";
+                    status.style.color = "var(--text-muted)";
+                    status.style.borderColor = "var(--text-muted)";
+                }
+            }
+        }
+
+        // Action: User clicks the Handle/Home button
+        function goHome() {
+            lockedPanelId = null; // Clear the lock
+
+            // Remove active styling from nav items
+            subItems.forEach(item => item.classList.remove('active'));
+
+            showPanel('home', true);
+        }
+
+        // Setup Interaction Listeners for the Sub-items
+        subItems.forEach(item => {
+            const targetId = item.getAttribute('data-target');
+
+            // 1. HOVER (Preview)
+            item.addEventListener('mouseenter', () => {
+                // Debounce: Wait 150ms before showing preview to prevent strobe light effect
+                clearTimeout(hoverTimeout);
+                hoverTimeout = setTimeout(() => {
+                    // Only show preview if we haven't locked onto a different specific panel
+                    showPanel(targetId, false);
+                }, 150);
+            });
+
+            // 2. CLICK (Lock)
+            item.addEventListener('click', () => {
+                clearTimeout(hoverTimeout);
+                lockedPanelId = targetId;
+
+                // Update nav UI
+                subItems.forEach(i => i.classList.remove('active'));
+                item.classList.add('active');
+
+                showPanel(targetId, true);
+            });
+        });
+
+        // 3. HOVER OUT (Revert to locked state or Home)
+        sidebar.addEventListener('mouseleave', () => {
+            clearTimeout(hoverTimeout);
+
+            // If the user leaves the sidebar, what should we show?
+            if (lockedPanelId) {
+                // If they clicked something previously, return to that locked view
+                showPanel(lockedPanelId, true);
+            } else {
+                // If they never clicked anything, return to Home
+                showPanel('home', true);
+            }
+        });
+
+        /* 
+         * STREAMING_CHUNK: Generalized JavaScript logic for Carousel Scrolling and
+         * Project Detail View.
+         */
+        function scrollCarousel(trackId, direction) {
+            const track = document.getElementById(trackId);
+            if (!track) return;
+            const scrollAmount = 432; // card width (400) + gap (32)
+            track.scrollBy({ left: scrollAmount * direction, behavior: 'smooth' });
+        }
+
+        function openProject(prefix, title, client, desc, quote, mediaType, mediaSrc) {
+            const gallery = document.getElementById(`${prefix}-gallery`);
+            const detail = document.getElementById(`${prefix}-detail`);
+            if (!gallery || !detail) return;
+
+            // Inject dynamic content into the detail view
+            document.getElementById(`${prefix}-detail-title`).textContent = title;
+            document.getElementById(`${prefix}-detail-client`).textContent = client;
+            document.getElementById(`${prefix}-detail-desc`).textContent = desc;
+            document.getElementById(`${prefix}-detail-quote`).textContent = '"' + quote + '"';
+
+            const mediaContainer = document.getElementById(`${prefix}-detail-media`);
+            if (mediaContainer) {
+                if (mediaType === 'video') {
+                    mediaContainer.innerHTML = `
+                        <div class="video-embed-wrapper">
+                            <iframe src="${mediaSrc}" title="${title}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                        </div>`;
+                } else {
+                    mediaContainer.innerHTML = `<img src="${mediaSrc}" alt="${title}">`;
+                }
+            }
+
+            // Switch states
+            gallery.classList.add('hidden');
+            detail.classList.add('active');
+
+            // Scroll detail view to top
+            detail.scrollTop = 0;
+        }
+
+        function closeProject(prefix) {
+            const gallery = document.getElementById(`${prefix}-gallery`);
+            const detail = document.getElementById(`${prefix}-detail`);
+
+            if (gallery && detail) {
+                detail.classList.remove('active');
+                gallery.classList.remove('hidden');
+            }
+        }
+
+        /* 
+         * STREAMING_CHUNK: Modal Logic
+         */
+        function openModal(modalId) {
+            document.getElementById(modalId).classList.add('active');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        function closeModalOnBgClick(event, modalId) {
+            if (event.target.id === modalId) {
+                closeModal(modalId);
+            }
+        }
+
+        // Booking Form Logic
+        function selectTimeSlot(element) {
+            // Deselect all
+            document.querySelectorAll('.time-slot').forEach(slot => {
+                slot.classList.remove('selected');
+            });
+            // Select clicked
+            element.classList.add('selected');
+        }
+
+        function handleBooking(event) {
+            event.preventDefault(); // Prevent page reload
+            
+            const btn = document.getElementById('submit-booking-btn');
+            const originalText = btn.textContent;
+            
+            // Check if a time slot is selected
+            const selectedSlot = document.querySelector('.time-slot.selected');
+            if (!selectedSlot) {
+                alert("Please select a meeting time."); // Only simple alert used here for minimal logic
+                return;
+            }
+
+            // Fake submission state
+            btn.textContent = "Booking...";
+            btn.style.opacity = "0.7";
+
+            setTimeout(() => {
+                btn.textContent = "Appointment Confirmed! \u2713"; // Checkmark
+                btn.style.backgroundColor = "#4ade80"; // Success green
+                btn.style.color = "#000";
+                
+                // Reset after 2 seconds
+                setTimeout(() => {
+                    closeModal('booking-modal');
+                    // Reset form
+                    event.target.reset();
+                    document.querySelectorAll('.time-slot').forEach(slot => slot.classList.remove('selected'));
+                    btn.textContent = originalText;
+                    btn.style.backgroundColor = "";
+                    btn.style.color = "";
+                    btn.style.opacity = "1";
+                }, 2000);
+            }, 1000);
+        }
+
+    </script>
+</body>
+</html>
