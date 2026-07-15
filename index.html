@@ -68,8 +68,16 @@
             white-space: nowrap;
             display: flex;
             align-items: center;
-        }
 
+            opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+        }
+        /* This makes it visible when you hover the sidebar */
+.sidebar:hover .sidebar-header {
+    opacity: 1;
+    pointer-events: auto;
+}
         .handle-btn {
             font-weight: 600;
             font-size: 1.1rem;
