@@ -252,9 +252,9 @@
             position: absolute;
             inset: 0;
             /* Creates a dark vignette and darkens the bottom for readability */
-            background: radial-gradient(circle at center, transparent 0%, var(--bg-dark) 120%), 
-                        linear-gradient(to top, var(--bg-dark) 0%, transparent 40%);
-            z-index: 1;
+            /* CHANGE IT TO THIS: */
+            background: radial-gradient(circle at 30% 45%, transparent 0%, var(--bg-dark) 120%), 
+            linear-gradient(to top, var(--bg-dark) 0%, transparent 40%);
         }
 
         .hero-overlay-content {
@@ -861,7 +861,7 @@
             <div class="content-panel active" id="panel-home">
                 <div class="hero-bg-container">
                     <!-- CHANGE IT TO THIS: -->
-<img src="images/Background.png" alt="Editorial Portrait" class="hero-editorial-img" onerror="this.src='https://placehold.co/1920x1080/111/fff?text=Background+Photo'">
+                    <img src="images/Background.png" alt="Editorial Portrait" class="hero-editorial-img" onerror="this.src='https://placehold.co/1920x1080/111/fff?text=Background+Photo'">
                     <div class="hero-bg-overlay"></div>
                 </div>
                 
